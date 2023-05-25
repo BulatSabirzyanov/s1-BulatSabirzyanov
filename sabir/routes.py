@@ -3,12 +3,11 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import uuid
-
 from werkzeug.utils import secure_filename
+from .models import User,BucketList,Like, db
 
-from sabir import app, db, pageLimit
-from sabir.models import User,BucketList,Like
 
+app = Flask(__name__)
 def allowed_file(filename):
     allowed_extensions = {'jpg', 'jpeg', 'png', 'gif'}
     return '.' in filename and \
@@ -170,11 +169,11 @@ def getWish():
     try:
         if 'user' in session:
             user_id = session['user']
-            limit = pageLimit
+
             offset = request.form['offset']
             total_records = 0
 
-            wishes = BucketList.query.filter_by(user_id=user_id).paginate(int(offset), int(limit), False).items
+            wishes = BucketList.query.filter_by(user_id=user_id).paginate(int(offset), False).items
             total_records = BucketList.query.filter_by(user_id=user_id).count()
 
             wishes_dict = []

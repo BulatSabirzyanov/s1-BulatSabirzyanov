@@ -1,7 +1,7 @@
-from flask import Flask, render_template, request, redirect, session, jsonify
+
 from flask_sqlalchemy import SQLAlchemy
-# Define BucketList model
-from sabir import db
+
+db = SQLAlchemy()
 class BucketList(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100))
