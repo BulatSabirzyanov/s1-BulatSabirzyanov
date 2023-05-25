@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>User Home</title>
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.min.css">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link href="../static/css/signup.css" rel="stylesheet">
+    <script src="../static/js/jquery-1.11.2.js"></script>
+    <script type="text/javascript" src="http://ajax.aspnetcdn.com/ajax/jquery.templates/beta1/jquery.tmpl.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
+
+    <style>
+        .btn-file {
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-file input[type=file] {
+            position: absolute;
+            top: 0;
+            right: 0;
+            min-width: 100%;
+            min-height: 100%;
+            font-size: 100px;
+            text-align: right;
+            filter: alpha(opacity=0);
+            opacity: 0;
+            outline: none;
+            background: white;
+            cursor: inherit;
+            display: block;
+        }
+    </style>
+
+    <script>
+        $(function(){
+            $('#fileupload').fileupload({
+                url: 'upload',
+                dataType: 'json',
+                add: function (e, data) {
+                    data.submit();
+                },
+                success:function(response,status) {
+                    console.log(response.filename);
+                    var filePath = 'static/Uploads/' + response.filename;
+                    $('#imgUpload').attr('src',filePath);
+                    $('#filePath').val(filePath);
+                    console.log('success');
+                },
+                error:function(error){
+                    console.log(error);
+                }
+            });
+
+            GetWishes(1);
+
+            $('#btnUpdate').click(function(){
+                $.ajax({
+                    url: '/updateWish',
+                    data: {
+                        title: $('#editTitle').val(),
+                        description: $('#editDescription').val(),
+                        id: localStorage.getItem('editId'),
+                        filePath: $('#imgUpload').attr('src'),
+                        isPrivate: $('#chkPrivate').is(':checked') ? 1 : 0,
+                        isDone: $('#chkDone').is(':checked') ? 1 : 0
+                    },
+                    type: 'POST',
+                    success: function(res){
+                        $('#editModal').modal('hide');
+                        GetWishes(1);
+                    },
+                    error: function(error){
+                        console.log(error);
+                    }
+                });
+            });
+
+            $('document').on('click', '.navigation li a', function(){
+                console.log('me in');
+            });
+        });
+
+        function GetWishes(_page){
+            var _offset = (_page - 1) * 2;
+            $.ajax({
+                url: '/getWish',
+                type: 'POST',
+                data: {offset: _offset},
+                success: function(res){
+                    var itemsPerPage = 5;
+                    var wishObj = JSON.parse(res);
+
+                    $('#ulist').empty();
+                    $('#listTemplate').tmpl(wishObj[0]).appendTo('#ulist');
+
+                    var total = wishObj[1]['total'];
+                    var pageCount = Math.ceil(total / itemsPerPage);
+
+                    $('.pagination').empty();
+
+                    var pageStart = $('#hdnStart').val();
+                    var pageEnd = $('#hdnEnd').val();
+
+                    if (pageStart > 5){
+                        var aPrev = $('<a/>').attr('href', '#').attr('aria-label', 'Previous')
+                            .append($('<span/>').attr('aria-hidden', 'true').html('&laquo;'));
+
+                        $(aPrev).click(function(){
+                            $('#hdnStart').val(Number(pageStart) - 5);
+                            $('#hdnEnd').val(Number(pageStart) - 1);
+                            GetWishes(Number(pageStart) - 5);
+                        });
+
+                        var prevLink = $('<li/>').append(aPrev);
+                        $('.pagination').append(prevLink);
+                    }
+
+                    for (var i = Number(pageStart); i <= Number(pageEnd); i++){
+                        if (i > pageCount){
+                            break;
+                        }
+
+                        var aPage = $('<a/>').attr('href', '#').text(i);
+
+                        $(aPage).click(function(i){
+                            return function(){
+                                GetWishes(i);
+                            }
+                        }(i));
+
+                        var page = $('<li/>').append(aPage);
+
+                        if (_page === i){
+                            $(page).addClass('active');
+                        }
+
+                        $('.pagination').append(page);
+                    }
+
+                    if ((Number(pageStart) + 5) <= pageCount){
+                        var aNext = $('<a/>').attr('href', '#').attr('aria-label', 'Next')
+                            .append($('<span/>').attr('aria-hidden', 'true').html('&raquo;'));
+
+                        $(aNext).click(function(){
+                            $('#hdnStart').val(Number(pageStart) + 5);
+                            $('#hdnEnd').val(Number(pageStart) + 9);
+                            GetWishes(Number(pageStart) + 5);
+                        });
+
+                        var nextLink = $('<li/>').append(aNext);
+                        $('.pagination').append(nextLink);
+                    }
+                },
+                error: function(error){
+                    console.log(error);
+                }
+            });
+        }
+
+        function ConfirmDelete(elem){
+            localStorage.setItem('deleteId', $(elem).attr('data-id'));
+            $('#deleteModal').modal();
+        }
+
+        function Delete(){
+            $.ajax({
+                url: '/deleteWish',
+                data: {id: localStorage.getItem('deleteId')},
+                type: 'POST',
+                success: function(res){
+                    var result = JSON.parse(res);
+                    if (result.status === 'OK'){
+                        $('#deleteModal').modal('hide');
+                        GetWishes(1);
+                    } else {
+                        alert(result.status);
+                    }
+                },
+                error: function(error){
+                    console.log(error);
+                }
+            });
+        }
+
+        function Edit(elm){
+            localStorage.setItem('editId', $(elm).attr('data-id'));
+            $.ajax({
+                url: '/getWishById',
+                data: {id: $(elm).attr('data-id')},
+                type: 'POST',
+                success: function(res){
+                    var data = JSON.parse(res);
+                    $('#editTitle').val(data[0]['Title']);
+                    $('#editDescription').val(data[0]['Description']);
+                    $('#imgUpload').attr('src', data[0]['FilePath']);
+                    if (data[0]['Private'] === "1"){
+                        $('#chkPrivate').attr('checked', 'checked');
+                    }
+                    if (data[0]['Done'] === "1"){
+                        $('#chkDone').attr('checked', 'checked');
+                    }
+                    $('#editModal').modal();
+                },
+                error: function(error){
+                    console.log(error);
+                }
+            });
+        }
+    </script>
+
+   <style>
+     .trash { color:rgb(209, 91, 71); }
+     .panel-body .checkbox { display:inline-block; margin:0px; }
+     .list-group { margin-bottom:0px; }
+   </style>
+
+  </head>
+
+  <body>
+
+    <div class="container">
+      <div class="header">
+        <nav>
+          <ul class="nav nav-pills pull-right">
+             <li role="presentation"><a href="/showDashboard">Dashboard</a></li>
+             <li role="presentation" class="active"><a href="/userHome">Home</a></li>
+             <li role="presentation"><a href="/showAddWish">Add Wish</a></li>
+             <li role="presentation"><a href="/logout">Logout</a></li>
+          </ul>
+        </nav>
+        <h3 class="text-muted">Python Flask App</h3>
+      </div>
+
+      <div class="well">
+        <div class="row">
+          <div class="col-md-12">
+            <div class="panel-body">
+              <ul id="ulist" class="list-group">
+                <!-- Ваши виши будут добавляться здесь -->
+              </ul>
+              <nav>
+                <ul class="pagination">
+                  <!-- Ваша пагинация будет добавляться здесь -->
+                </ul>
+              </nav>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="footer">
+        <!-- Ваш подвал -->
+      </footer>
+    </div>
+
+    <div class="modal fade" id="editModal" tabindex="-1" role="dialog" aria-labelledby="editModalLabel" aria-hidden="true">
+      <!-- Модальное окно для редактирования виша -->
+    </div>
+
+    <div class="modal fade" id="deleteModal" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel" aria-hidden="true">
+      <!-- Модальное окно для подтверждения удаления виша -->
+    </div>
+
+    <input type="hidden" id="hdnStart" value="1" />
+    <input type="hidden" id="hdnEnd" value="5" />
+
+  </body>
+</html>
