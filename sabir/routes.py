@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session, jsonify, url_for
+from flask import Flask, render_template, request, redirect, session, jsonify, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
@@ -164,29 +164,28 @@ def getWishById():
         return jsonify({'error': str(e)})
 
 
-@app.route('/getWish', methods=['POST'])
+@app.route('/getWish', methods=['GET'])
 def getWish():
     try:
         if 'user' in session:
             user_id = session['user']
 
-            offset = request.form['offset']
+            offset = request.args.get('offset')
             total_records = 0
-
-            wishes = BucketList.query.filter_by(user_id=user_id).paginate(int(offset), False).items
+            wishes = BucketList.query.filter_by(user_id=user_id).paginate(page=int(offset), per_page=5, error_out=False).items
+            print(wishes)
             total_records = BucketList.query.filter_by(user_id=user_id).count()
 
-            wishes_dict = []
+            wishes_list = []
             for wish in wishes:
-                wish_dict = {
+                wish_dict  = {
                     'Id': wish.id,
                     'Title': wish.title,
                     'Description': wish.description,
                     'Date': wish.date.strftime('%Y-%m-%d')
                 }
-                wishes_dict.append(wish_dict)
-
-            response = [wishes_dict, {'total': total_records}]
+                wishes_list.append(wish_dict )
+            response = [wishes_list, {'total': total_records}]
             return jsonify(response)
         else:
             return jsonify({'error': 'Unauthorized Access'})
@@ -225,9 +224,6 @@ def updateWish():
             title = request.form['title']
             description = request.form['description']
             wish_id = request.form['id']
-            file_path = request.form['filePath']
-            is_private = request.form['isPrivate']
-            is_done = request.form['isDone']
 
             bucketlist = BucketList.query.get(wish_id)
             if not bucketlist or bucketlist.user_id != user_id:
@@ -235,9 +231,6 @@ def updateWish():
 
             bucketlist.title = title
             bucketlist.description = description
-            bucketlist.file_path = file_path
-            bucketlist.is_private = is_private
-            bucketlist.is_done = is_done
             db.session.commit()
 
             return jsonify({'status': 'OK'})
@@ -316,6 +309,34 @@ def upload_photo():
             user.photo = filename
             db.session.commit()
     return redirect(url_for('profile'))
+
+
+@app.route('/editWish/<int:wish_id>', methods=['GET', 'POST'])
+def editWish(wish_id):
+    wish = BucketList.query.get(wish_id)
+    if not wish:
+        flash('Wish not found')
+        return redirect(url_for('userHome'))
+
+    if request.method == 'POST':
+        title = request.form['editTitle']
+        description = request.form['editDescription']
+        file_path = request.form['editFilePath']
+        is_private = request.form.get('editIsPrivate') == 'on'
+        is_done = request.form.get('editIsDone') == 'on'
+
+        wish.title = title
+        wish.description = description
+        wish.file_path = file_path
+        wish.is_private = is_private
+        wish.is_done = is_done
+        db.session.commit()
+
+        flash('Wish updated successfully')
+        return redirect(url_for('userHome'))
+
+    return render_template('editWish.html', wish=wish)
+
 
 
 

@@ -5,7 +5,8 @@
 
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="//netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.min.css">
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+          integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
     <link href="../static/css/signup.css" rel="stylesheet">
     <script src="../static/js/jquery-1.11.2.js"></script>
     <script type="text/javascript" src="http://ajax.aspnetcdn.com/ajax/jquery.templates/beta1/jquery.tmpl.js"></script>
@@ -16,6 +17,7 @@
             position: relative;
             overflow: hidden;
         }
+
         .btn-file input[type=file] {
             position: absolute;
             top: 0;
@@ -31,240 +33,334 @@
             cursor: inherit;
             display: block;
         }
+
+        .trash {
+            color: rgb(209, 91, 71);
+        }
+
+        .panel-body .checkbox {
+            display: inline-block;
+            margin: 0px;
+        }
+
+        .list-group {
+            margin-bottom: 0px;
+        }
     </style>
 
-    <script>
-        $(function(){
-            $('#fileupload').fileupload({
-                url: 'upload',
-                dataType: 'json',
-                add: function (e, data) {
-                    data.submit();
-                },
-                success:function(response,status) {
-                    console.log(response.filename);
-                    var filePath = 'static/Uploads/' + response.filename;
-                    $('#imgUpload').attr('src',filePath);
-                    $('#filePath').val(filePath);
-                    console.log('success');
-                },
-                error:function(error){
-                    console.log(error);
-                }
-            });
+</head>
 
-            GetWishes(1);
+<body>
 
-            $('#btnUpdate').click(function(){
-                $.ajax({
-                    url: '/updateWish',
-                    data: {
-                        title: $('#editTitle').val(),
-                        description: $('#editDescription').val(),
-                        id: localStorage.getItem('editId'),
-                        filePath: $('#imgUpload').attr('src'),
-                        isPrivate: $('#chkPrivate').is(':checked') ? 1 : 0,
-                        isDone: $('#chkDone').is(':checked') ? 1 : 0
-                    },
-                    type: 'POST',
-                    success: function(res){
-                        $('#editModal').modal('hide');
-                        GetWishes(1);
-                    },
-                    error: function(error){
-                        console.log(error);
-                    }
-                });
-            });
-
-            $('document').on('click', '.navigation li a', function(){
-                console.log('me in');
-            });
-        });
-
-        function GetWishes(_page){
-            var _offset = (_page - 1) * 2;
-            $.ajax({
-                url: '/getWish',
-                type: 'POST',
-                data: {offset: _offset},
-                success: function(res){
-                    var itemsPerPage = 5;
-                    var wishObj = JSON.parse(res);
-
-                    $('#ulist').empty();
-                    $('#listTemplate').tmpl(wishObj[0]).appendTo('#ulist');
-
-                    var total = wishObj[1]['total'];
-                    var pageCount = Math.ceil(total / itemsPerPage);
-
-                    $('.pagination').empty();
-
-                    var pageStart = $('#hdnStart').val();
-                    var pageEnd = $('#hdnEnd').val();
-
-                    if (pageStart > 5){
-                        var aPrev = $('<a/>').attr('href', '#').attr('aria-label', 'Previous')
-                            .append($('<span/>').attr('aria-hidden', 'true').html('&laquo;'));
-
-                        $(aPrev).click(function(){
-                            $('#hdnStart').val(Number(pageStart) - 5);
-                            $('#hdnEnd').val(Number(pageStart) - 1);
-                            GetWishes(Number(pageStart) - 5);
-                        });
-
-                        var prevLink = $('<li/>').append(aPrev);
-                        $('.pagination').append(prevLink);
-                    }
-
-                    for (var i = Number(pageStart); i <= Number(pageEnd); i++){
-                        if (i > pageCount){
-                            break;
-                        }
-
-                        var aPage = $('<a/>').attr('href', '#').text(i);
-
-                        $(aPage).click(function(i){
-                            return function(){
-                                GetWishes(i);
-                            }
-                        }(i));
-
-                        var page = $('<li/>').append(aPage);
-
-                        if (_page === i){
-                            $(page).addClass('active');
-                        }
-
-                        $('.pagination').append(page);
-                    }
-
-                    if ((Number(pageStart) + 5) <= pageCount){
-                        var aNext = $('<a/>').attr('href', '#').attr('aria-label', 'Next')
-                            .append($('<span/>').attr('aria-hidden', 'true').html('&raquo;'));
-
-                        $(aNext).click(function(){
-                            $('#hdnStart').val(Number(pageStart) + 5);
-                            $('#hdnEnd').val(Number(pageStart) + 9);
-                            GetWishes(Number(pageStart) + 5);
-                        });
-
-                        var nextLink = $('<li/>').append(aNext);
-                        $('.pagination').append(nextLink);
-                    }
-                },
-                error: function(error){
-                    console.log(error);
-                }
-            });
-        }
-
-        function ConfirmDelete(elem){
-            localStorage.setItem('deleteId', $(elem).attr('data-id'));
-            $('#deleteModal').modal();
-        }
-
-        function Delete(){
-            $.ajax({
-                url: '/deleteWish',
-                data: {id: localStorage.getItem('deleteId')},
-                type: 'POST',
-                success: function(res){
-                    var result = JSON.parse(res);
-                    if (result.status === 'OK'){
-                        $('#deleteModal').modal('hide');
-                        GetWishes(1);
-                    } else {
-                        alert(result.status);
-                    }
-                },
-                error: function(error){
-                    console.log(error);
-                }
-            });
-        }
-
-        function Edit(elm){
-            localStorage.setItem('editId', $(elm).attr('data-id'));
-            $.ajax({
-                url: '/getWishById',
-                data: {id: $(elm).attr('data-id')},
-                type: 'POST',
-                success: function(res){
-                    var data = JSON.parse(res);
-                    $('#editTitle').val(data[0]['Title']);
-                    $('#editDescription').val(data[0]['Description']);
-                    $('#imgUpload').attr('src', data[0]['FilePath']);
-                    if (data[0]['Private'] === "1"){
-                        $('#chkPrivate').attr('checked', 'checked');
-                    }
-                    if (data[0]['Done'] === "1"){
-                        $('#chkDone').attr('checked', 'checked');
-                    }
-                    $('#editModal').modal();
-                },
-                error: function(error){
-                    console.log(error);
-                }
-            });
-        }
-    </script>
-
-   <style>
-     .trash { color:rgb(209, 91, 71); }
-     .panel-body .checkbox { display:inline-block; margin:0px; }
-     .list-group { margin-bottom:0px; }
-   </style>
-
-  </head>
-
-  <body>
-
-    <div class="container">
-      <div class="header">
+<div class="container">
+    <div class="header">
         <nav>
-          <ul class="nav nav-pills pull-right">
-             <li role="presentation"><a href="/showDashboard">Dashboard</a></li>
-             <li role="presentation" class="active"><a href="/userHome">Home</a></li>
-             <li role="presentation"><a href="/showAddWish">Add Wish</a></li>
-             <li role="presentation"><a href="/logout">Logout</a></li>
-          </ul>
+            <ul class="nav nav-pills pull-right">
+                <li role="presentation"><a href="/showDashboard">Dashboard</a></li>
+                <li role="presentation" class="active"><a href="/userHome">Home</a></li>
+                <li role="presentation"><a href="/showAddWish">Add Wish</a></li>
+                <li role="presentation"><a href="/logout">Logout</a></li>
+            </ul>
         </nav>
         <h3 class="text-muted">Python Flask App</h3>
-      </div>
+    </div>
 
-      <div class="well">
+    <div class="well">
         <div class="row">
-          <div class="col-md-12">
-            <div class="panel-body">
-              <ul id="ulist" class="list-group">
-                <!-- Ваши виши будут добавляться здесь -->
-              </ul>
-              <nav>
-                <ul class="pagination">
-                  <!-- Ваша пагинация будет добавляться здесь -->
-                </ul>
-              </nav>
+            <div class="col-md-12">
+                <div class="panel-body">
+                    <ul id="ulist" class="list-group">
+                        <!-- Шаблон для отображения каждого виша -->
+                        <li class="list-group-item">
+                            <div class="d-flex align-items-center">
+                                <img src="{{ file_path }}" alt="Product Icon" class="product-icon">
+                                <div class="flex-grow-1">
+                                    <h4 class="list-group-item-heading">{{ Title }}</h4>
+                                    <p class="list-group-item-text">{{ Description }}</p>
+                                </div>
+                                <div>
+                                    <button class="btn btn-warning btn-edit" data-id="{{ id }}">Редактировать</button>
+                                    <button class="btn btn-danger btn-delete" data-id="{{ id }}">Удалить</button>
+                                </div>
+                            </div>
+                        </li>
+
+                    </ul>
+                    <nav>
+                        <ul class="pagination">
+                            <!-- Ваша пагинация будет добавляться здесь -->
+                        </ul>
+                    </nav>
+                </div>
             </div>
-          </div>
         </div>
-      </div>
+    </div>
 
-      <footer class="footer">
+    <footer class="footer">
         <!-- Ваш подвал -->
-      </footer>
+    </footer>
+</div>
+
+<div class="modal-dialog" role="document">
+    <div class="modal-content" id="editModal">
+        <div class="modal-header">
+            <h5 class="modal-title" id="editModalLabel">Редактирование виша</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="editForm">
+                <div class="form-group">
+                    <label for="editTitle">Заголовок:</label>
+                    <input type="text" class="form-control" id="editTitle" name="editTitle" required>
+                </div>
+                <div class="form-group">
+                    <label for="editDescription">Описание:</label>
+                    <textarea class="form-control" id="editDescription" name="editDescription" required></textarea>
+                </div>
+                <input type="hidden" id="editId" name="editId">
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
+            <button type="button" class="btn btn-primary" id="btnSaveChanges">Сохранить изменения</button>
+        </div>
     </div>
+</div>
 
-    <div class="modal fade" id="editModal" tabindex="-1" role="dialog" aria-labelledby="editModalLabel" aria-hidden="true">
-      <!-- Модальное окно для редактирования виша -->
-    </div>
+<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel"
+     aria-hidden="true">
+    <!-- Модальное окно для подтверждения удаления виша -->
+</div>
 
-    <div class="modal fade" id="deleteModal" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel" aria-hidden="true">
-      <!-- Модальное окно для подтверждения удаления виша -->
-    </div>
+<input type="hidden" id="hdnStart" value="1"/>
+<input type="hidden" id="hdnEnd" value="5"/>
 
-    <input type="hidden" id="hdnStart" value="1" />
-    <input type="hidden" id="hdnEnd" value="5" />
+</body>
+<script>
 
-  </body>
+    GetWishes(1);
+    console.log(12121212)
+    $("#editModal").hide()
+
+
+    $(function () {
+
+        /*       $('#fileupload').fileupload({
+                   url: 'upload',
+                   dataType: 'json',
+                   add: function (e, data) {
+                       data.submit();
+                   },
+                   success: function (response, status) {
+                       console.log(response.filename);
+                       var filePath = 'static/Uploads/' + response.filename;
+                       $('#imgUpload').attr('src', filePath);
+                       $('#filePath').val(filePath);
+                       console.log('success');
+                   },
+                   error: function (error) {
+                       console.log(error);
+                   }
+               });
+       */
+
+        /* $('document').on('click', '.navigation li a', function () {
+             console.log('me in');
+         });*/
+    });
+    // Обработчик нажатия на кнопку "Редактировать"
+    $(document).on('click', '.btn-edit', function () {
+        console.log(1312313)
+        // Получаем значения полей виша
+        var id = $(this).data('id');
+        console.log(id)
+        var title = $(this).siblings('.list-group-item-heading').text();
+        var description = $(this).siblings('.list-group-item-text').text();
+
+        // Заполняем поля формы редактирования виша
+        $('#editId').val(id);
+        $('#editTitle').val(title);
+        $('#editDescription').val(description);
+
+        // Открываем модальное окно редактирования
+        $('#editModal').show();
+    });
+
+    // Обработчик нажатия на кнопку "Сохранить изменения"
+    $('#btnSaveChanges').click(function () {
+        // Получаем значения из полей формы редактирования виша
+        var id = $('#editId').val();
+        var title = $('#editTitle').val();
+        var description = $('#editDescription').val();
+
+        // Отправляем данные на сервер
+        $.ajax({
+            url: '/updateWish',
+            method: 'POST',
+            data: {
+                id: id,
+                title: title,
+                description: description
+            },
+            success: function (response) {
+                $('#editModal').hide();
+                window.location.reload();
+            },
+            error: function () {
+                console.log('error')
+            }
+        });
+
+        // Закрываем модальное окно редактирования
+    });
+
+
+    function GetWishes(_page) {
+        var _offset = (_page - 1) * 2;
+        $.ajax({
+            url: '/getWish',
+            type: 'GET',
+            data: {offset: _offset},
+            success: function (res) {
+                var itemsPerPage = 5;
+                $('#ulist').empty();
+                console.log(res[0])
+                var data = res[0]
+                var ul = document.getElementById('ulist');
+                for (var i = 0; i < data.length; i++) {
+                    // создаем новый li элемент
+                    var li = document.createElement('li');
+                    li.classList.add("list-group-item");
+
+                    // создаем заголовок и текст для li
+                    var h4 = document.createElement('h4');
+                    h4.classList.add("list-group-item-heading");
+                    h4.textContent = data[i].Title;
+
+                    var p = document.createElement('p');
+                    p.classList.add("list-group-item-text");
+                    p.textContent = data[i].Description;
+
+                    // создаем кнопки для редактирования и удаления
+                    var editButton = document.createElement('button');
+                    editButton.classList.add('btn', 'btn-warning', 'btn-edit');
+                    editButton.setAttribute('data-id', data[i].Id);
+                    editButton.textContent = 'Редактировать';
+
+                    var deleteButton = document.createElement('button');
+                    deleteButton.classList.add('btn', 'btn-danger', 'btn-delete');
+                    deleteButton.setAttribute('data-id', data[i].Id);
+                    deleteButton.textContent = 'Удалить';
+
+                    // добавляем заголовок, текст и кнопки в li
+                    li.appendChild(h4);
+                    li.appendChild(p);
+                    li.appendChild(editButton);
+                    li.appendChild(deleteButton);
+
+                    // добавляем li в ul
+                    ul.appendChild(li);
+                }
+
+
+                var total = res[1]['total'];
+                var pageCount = Math.ceil(total / itemsPerPage);
+
+                $('.pagination').empty();
+
+                var pageStart = $('#hdnStart').val();
+                var pageEnd = $('#hdnEnd').val();
+
+                if (pageStart > 5) {
+                    var aPrev = $('<a/>').attr('href', '#').attr('aria-label', 'Previous')
+                        .append($('<span/>').attr('aria-hidden', 'true').html('&laquo;'));
+
+                    $(aPrev).click(function () {
+                        $('#hdnStart').val(Number(pageStart) - 5);
+                        $('#hdnEnd').val(Number(pageStart) - 1);
+                        GetWishes(Number(pageStart) - 5);
+                    });
+
+                    var prevLink = $('<li/>').append(aPrev);
+                    $('.pagination').append(prevLink);
+                }
+
+                for (var i = Number(pageStart); i <= Number(pageEnd); i++) {
+                    if (i > pageCount) {
+                        break;
+                    }
+
+                    var aPage = $('<a/>').attr('href', '#').text(i);
+
+                    $(aPage).click(function (i) {
+                        return function () {
+                            GetWishes(i);
+                        }
+                    }(i));
+
+                    var page = $('<li/>').append(aPage);
+
+                    if (_page === i) {
+                        $(page).addClass('active');
+                    }
+
+                    $('.pagination').append(page);
+                }
+
+                if ((Number(pageStart) + 5) <= pageCount) {
+                    var aNext = $('<a/>').attr('href', '#').attr('aria-label', 'Next')
+                        .append($('<span/>').attr('aria-hidden', 'true').html('&raquo;'));
+
+                    $(aNext).click(function () {
+                        $('#hdnStart').val(Number(pageStart) + 5);
+                        $('#hdnEnd').val(Number(pageStart) + 9);
+                        GetWishes(Number(pageStart) + 5);
+                    });
+
+                    var nextLink = $('<li/>').append(aNext);
+                    $('.pagination').append(nextLink);
+                }
+            },
+            error: function (error) {
+                console.log(error);
+            }
+        });
+    }
+
+    function ConfirmDelete(elem) {
+        localStorage.setItem('deleteId', $(elem).attr('data-id'));
+        $('#deleteModal').modal();
+    }
+
+    function Delete() {
+        $.ajax({
+            url: '/deleteWish',
+            data: {id: localStorage.getItem('deleteId')},
+            type: 'POST',
+            success: function (res) {
+                var result = JSON.parse(res);
+                if (result.status === 'OK') {
+                    $('#deleteModal').modal('hide');
+                    GetWishes(1);
+                } else {
+                    alert(result.status);
+                }
+            },
+            error: function (error) {
+                console.log(error);
+            }
+        });
+    }
+
+    function Edit(elm) {
+        var wishId = $(elm).attr('data-id');
+        localStorage.setItem('editId', wishId);
+        window.location.href = '/editwish?id=' + wishId;
+    }
+
+</script>
+
+
 </html>
