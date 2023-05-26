@@ -7,9 +7,26 @@ from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer
 from sabir import app, db
 from sabir.forms import ResetPasswordForm_2, ResetPasswordForm
-from sabir.models import User,BucketList,Like
+from sabir.models import User, BucketList, Like
 
 
+
+
+"""Объект app.config представляет конфигурацию Flask приложения.
+
+    Атрибуты:
+        MAIL_SERVER (str): Адрес сервера электронной почты для отправки писем.
+        MAIL_PORT (int): Порт сервера электронной почты.
+        MAIL_USE_TLS (bool): Флаг, указывающий на использование TLS (Transport Layer Security).
+        MAIL_USE_SSL (bool): Флаг, указывающий на использование SSL (Secure Sockets Layer).
+        MAIL_USERNAME (str): Имя пользователя для аутентификации на сервере электронной почты.
+        MAIL_PASSWORD (str): Пароль для аутентификации на сервере электронной почты.
+        MAIL_DEFAULT_SENDER (str): Электронный адрес отправителя по умолчанию для писем.
+        MAIL_USE_MANAGEMENT_COMMANDS (bool): Флаг, указывающий на использование асинхронной отправки.
+
+    Примечание:
+        Для работы с электронной почтой необходимо настроить соответствующий почтовый сервер.
+    """
 app.config['MAIL_SERVER'] = 'smtp.mail.ru'
 app.config['MAIL_PORT'] = 465
 app.config['MAIL_USE_TLS'] = False
@@ -20,21 +37,66 @@ app.config['MAIL_PASSWORD'] = 'MuXPHsf9W2wHHe3p5dk2'
 app.config['MAIL_DEFAULT_SENDER'] = 'sabirzyanov427@mail.ru'
 app.config['MAIL_USE_MANAGEMENT_COMMANDS'] = True  # Включение поддержки асинхронной отправки
 
+
+
+
+"""Объект mail представляет почтовое расширение Flask - Flask-Mail.
+
+   Атрибуты:
+       app (Flask): Экземпляр класса Flask, связанный с почтовым расширением.
+
+   Примечание:
+       Для использования Flask-Mail необходимо установить соответствующий пакет.
+   """
 mail = Mail(app)
+
+
+
+
+
+"""Объект serializer представляет сериализатор URLSafeTimedSerializer.
+
+   Атрибуты:
+       app.config['SECRET_KEY'] (str): Секретный ключ, используемый для подписи и шифрования данных.
+
+   Примечание:
+       URLSafeTimedSerializer обычно используется для создания защищенных токенов и временных ссылок.
+   """
 serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
 
-
-
 def allowed_file(filename):
+    """Проверяет, является ли расширение файла допустимым.
+
+        Аргументы:
+            filename (str): Имя файла.
+
+        Возвращает:
+            bool: True, если расширение файла допустимо, False в противном случае.
+        """
     allowed_extensions = {'jpg', 'jpeg', 'png', 'gif'}
     return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in allowed_extensions
+        filename.rsplit('.', 1)[1].lower() in allowed_extensions
+
+
 @app.route('/')
 def main():
+    """Обрабатывает запрос на главную страницу.
+
+        Возвращает:
+            str: HTML-шаблон для главной страницы.
+        """
     return render_template('index.html')
+
+
 @app.route('/profile')
 def profile():
+    """Обрабатывает запрос на страницу профиля.
+
+        Возвращает:
+            str: HTML-шаблон для страницы профиля, если пользователь авторизован.
+            str: HTML-шаблон с сообщением об ошибке, если доступ запрещен.
+        """
     if 'user' in session:
         user_name = session['user']
         user = User.query.filter_by(name=user_name).first()
@@ -42,8 +104,22 @@ def profile():
             return render_template('profile.html', user=user)
     return render_template('error.html', error='Unauthorized Access')
 
+
 @app.route("/upload", methods=["POST"])
 def upload():
+    """
+        Обработчик запроса на загрузку файла.
+
+        Методы:
+            - POST: Загружает файл и обновляет аватар пользователя в базе данных.
+
+        Входные параметры:
+            Нет.
+
+        Возвращаемое значение:
+            Редирект на страницу профиля пользователя.
+
+        """
     if 'file' not in request.files:
         flash('Файл не найден', 'error')
         return redirect(url_for('profile'))
@@ -77,16 +153,58 @@ def upload():
 
     return redirect(url_for('profile'))
 
+
 @app.route('/showSignUp')
 def showSignUp():
+    """
+        Отображает страницу регистрации.
+
+        Методы:
+            - GET: Отображает страницу регистрации.
+
+        Входные параметры:
+            Нет.
+
+        Возвращаемое значение:
+            HTML-шаблон страницы регистрации.
+
+        """
     return render_template('signup.html')
+
 
 @app.route('/showAddWish')
 def showAddWish():
+    """
+        Отображает страницу добавления пожелания.
+
+        Методы:
+            - GET: Отображает страницу добавления пожелания.
+
+        Входные параметры:
+            Нет.
+
+        Возвращаемое значение:
+            HTML-шаблон страницы добавления пожелания.
+
+        """
     return render_template('addWish.html')
+
 
 @app.route('/addUpdateLike', methods=['POST'])
 def addUpdateLike():
+    """
+        Обработчик запроса на добавление или обновление лайка.
+
+        Методы:
+            - POST: Добавляет или обновляет лайк для указанного пожелания.
+
+        Входные параметры:
+            Нет.
+
+        Возвращаемое значение:
+            JSON-ответ с информацией о статусе операции и общем количестве лайков.
+
+        """
     try:
         if 'user' in session:
             wish_id = request.form['wish']
@@ -114,8 +232,22 @@ def addUpdateLike():
     except Exception as e:
         return jsonify({'error': str(e)})
 
+
 @app.route('/getAllWishes')
 def getAllWishes():
+    """
+        Обработчик запроса на получение всех пожеланий.
+
+        Методы:
+            - GET: Возвращает информацию о всех пожеланиях.
+
+        Входные параметры:
+            Нет.
+
+        Возвращаемое значение:
+            JSON-ответ со списком пожеланий и связанной информацией.
+
+        """
     try:
         if 'user' in session:
             user_id = session['user']
@@ -141,11 +273,38 @@ def getAllWishes():
 
 @app.route('/showDashboard')
 def showDashboard():
+    """
+        Отображает страницу панели управления.
+
+        Методы:
+            - GET: Отображает страницу панели управления, если пользователь авторизован.
+
+        Входные параметры:
+            Нет.
+
+        Возвращаемое значение:
+            HTML-шаблон страницы панели управления или редирект на страницу входа.
+
+        """
     if 'user' in session:
         return render_template('dashboard.html')
 
+
 @app.route('/dashboard')
 def dashboard():
+    """
+        Отображает панель управления пользователя.
+
+        Методы:
+            - GET: Отображает панель управления пользователя, если пользователь авторизован.
+
+        Входные параметры:
+            Нет.
+
+        Возвращаемое значение:
+            HTML-шаблон панели управления пользователя с информацией о количестве пожеланий.
+
+        """
     if 'user' not in session:
         return redirect(url_for('login'))  # redirect to login page if user is not logged in
 
@@ -158,8 +317,23 @@ def dashboard():
                            total_wishes=total_wishes,
                            completed_wishes=completed_wishes,
                            pending_wishes=pending_wishes)
+
+
 @app.route('/showSignin')
 def showSignin():
+    """
+        Отображает страницу входа.
+
+        Методы:
+            - GET: Отображает страницу входа.
+
+        Входные параметры:
+            Нет.
+
+        Возвращаемое значение:
+            HTML-шаблон страницы входа или страницы ошибки, если пользователь уже авторизован.
+
+        """
     if 'user' in session:
         return render_template('userHome.html')
     else:
@@ -168,6 +342,19 @@ def showSignin():
 
 @app.route('/userHome')
 def userHome():
+    """
+        Отображает домашнюю страницу пользователя.
+
+        Методы:
+            - GET: Отображает домашнюю страницу пользователя, если пользователь авторизован.
+
+        Входные параметры:
+            Нет.
+
+        Возвращаемое значение:
+            HTML-шаблон домашней страницы пользователя или страницы ошибки, если пользователь не авторизован.
+
+        """
     if 'user' in session:
         return render_template('userHome.html')
     else:
@@ -176,12 +363,38 @@ def userHome():
 
 @app.route('/logout')
 def logout():
+    """
+        Выход из системы.
+
+        Методы:
+            - GET: Выходит из системы и перенаправляет на главную страницу.
+
+        Входные параметры:
+            Нет.
+
+        Возвращаемое значение:
+            Редирект на главную страницу.
+
+        """
     session.pop('user', None)
     return redirect('/')
 
 
 @app.route('/deleteWish', methods=['POST'])
 def deleteWish():
+    """
+        Обработчик запроса на удаление пожелания.
+
+        Методы:
+            - POST: Удаляет указанное пожелание, если пользователь авторизован и имеет соответствующие права доступа.
+
+        Входные параметры:
+            Нет.
+
+        Возвращаемое значение:
+            JSON-ответ с информацией о статусе операции.
+
+        """
     try:
         if 'user' in session:
             wish_id = request.form['id']
@@ -203,6 +416,19 @@ def deleteWish():
 
 @app.route('/getWishById', methods=['POST'])
 def getWishById():
+    """
+        Обработчик запроса на получение пожелания по его идентификатору.
+
+        Методы:
+            - POST: Возвращает информацию о пожелании с указанным идентификатором, если пользователь авторизован и имеет соответствующие права доступа.
+
+        Входные параметры:
+            Нет.
+
+        Возвращаемое значение:
+            JSON-ответ с информацией о пожелании.
+
+        """
     try:
         if 'user' in session:
             wish_id = request.form['id']
@@ -229,25 +455,39 @@ def getWishById():
 
 @app.route('/getWish', methods=['GET'])
 def getWish():
+    """
+        Обработчик запроса на получение списка пожеланий пользователя.
+
+        Методы:
+            - GET: Возвращает список пожеланий пользователя, если пользователь авторизован.
+
+        Входные параметры:
+            Нет.
+
+        Возвращаемое значение:
+            JSON-ответ со списком пожеланий пользователя и общим количеством пожеланий.
+
+        """
     try:
         if 'user' in session:
             user_id = session['user']
 
             offset = request.args.get('offset')
             total_records = 0
-            wishes = BucketList.query.filter_by(user_id=user_id).paginate(page=int(offset), per_page=5, error_out=False).items
+            wishes = BucketList.query.filter_by(user_id=user_id).paginate(page=int(offset), per_page=5,
+                                                                          error_out=False).items
             print(wishes)
             total_records = BucketList.query.filter_by(user_id=user_id).count()
 
             wishes_list = []
             for wish in wishes:
-                wish_dict  = {
+                wish_dict = {
                     'Id': wish.id,
                     'Title': wish.title,
                     'Description': wish.description,
                     'Date': wish.date.strftime('%Y-%m-%d')
                 }
-                wishes_list.append(wish_dict )
+                wishes_list.append(wish_dict)
             response = [wishes_list, {'total': total_records}]
             return jsonify(response)
         else:
@@ -258,6 +498,19 @@ def getWish():
 
 @app.route('/addWish', methods=['POST'])
 def addWish():
+    """
+        Обработчик запроса на добавление нового пожелания.
+
+        Методы:
+            - POST: Добавляет новое пожелание пользователя, если пользователь авторизован.
+
+        Входные параметры:
+            Нет.
+
+        Возвращаемое значение:
+            Редирект на домашнюю страницу пользователя.
+
+        """
     try:
         if 'user' in session:
             title = request.form['inputTitle']
@@ -281,6 +534,19 @@ def addWish():
 
 @app.route('/updateWish', methods=['POST'])
 def updateWish():
+    """
+        Обработчик запроса на обновление информации о пожелании.
+
+        Методы:
+            - POST: Обновляет информацию о пожелании пользователя, если пользователь авторизован и имеет соответствующие права доступа.
+
+        Входные параметры:
+            Нет.
+
+        Возвращаемое значение:
+            JSON-ответ с информацией о статусе операции.
+
+        """
     try:
         if 'user' in session:
             user_id = session['user']
@@ -305,14 +571,8 @@ def updateWish():
         return jsonify({'status': 'Unauthorized access'})
 
 
-
 from flask_dance.contrib.github import make_github_blueprint, github
 from flask_oauthlib.client import OAuth
-
-
-
-
-
 
 oauth = OAuth(app)
 github = oauth.remote_app(
@@ -335,14 +595,44 @@ def get_github_token():
 
 @app.route('/login/github')
 def login_github():
+    """
+        Обработчик запроса на аутентификацию через GitHub.
+
+        Методы:
+            - GET: Инициирует процесс аутентификации пользователя через GitHub.
+
+        Входные параметры:
+            Нет.
+
+        Возвращаемое значение:
+            Редирект на страницу авторизации GitHub.
+
+        """
     return github.authorize(callback=url_for('github_authorized', _external=True))
 
+
 from flask_dance.consumer import oauth_authorized
+
+
+
+
 
 @app.route('/login/github/callback')
 @github.authorized_handler
 def github_authorized(resp):
+    """
+        Обработчик коллбэка аутентификации через GitHub.
 
+        Методы:
+            - GET: Получает информацию об аутентификации пользователя через GitHub и производит соответствующие действия.
+
+        Входные параметры:
+            - resp: Ответ от GitHub содержащий информацию об аутентификации.
+
+        Возвращаемое значение:
+            Редирект на профиль пользователя или на страницу авторизации с сообщением об ошибке.
+
+        """
     next_page = url_for('dashboard')
     if resp is None:
         flash('Authorization failed.', 'danger')
@@ -373,17 +663,23 @@ def github_authorized(resp):
     return redirect(url_for('profile'))
 
 
-
-
-
-
-
-
-
-
 @app.route('/validateLogin', methods=['GET', 'POST'])
 def validateLogin():
+    """
+        Обработчик запроса на валидацию входа пользователя.
 
+        Методы:
+            - GET: Отображает страницу входа пользователя.
+            - POST: Проверяет введенные данные пользователя и осуществляет вход.
+
+        Входные параметры:
+            Нет.
+
+        Возвращаемое значение:
+            - Если введенные данные верны, происходит перенаправление на страницу панели управления (dashboard).
+            - Если введенные данные неверны, происходит перенаправление на страницу входа (signin) с сообщением об ошибке.
+
+        """
     email = request.form['inputEmail']
     password = request.form['inputPassword']
 
@@ -393,13 +689,27 @@ def validateLogin():
         session['user'] = user.name
         return redirect('/showDashboard')
 
-
     return render_template('signin.html')
-
 
 
 @app.route('/reset_password', methods=['GET', 'POST'])
 def reset_password():
+    """
+        Обработчик запроса на сброс пароля пользователя.
+
+        Методы:
+            - GET: Отображает страницу сброса пароля.
+            - POST: Проверяет введенный адрес электронной почты пользователя и отправляет инструкции по сбросу пароля.
+
+        Входные параметры:
+            Нет.
+
+        Возвращаемое значение:
+            - Если адрес электронной почты существует в базе данных, отправляются инструкции по сбросу пароля на указанный адрес.
+              Затем происходит перенаправление на страницу входа с сообщением об успешной отправке инструкций.
+            - Если адрес электронной почты не найден в базе данных, происходит перенаправление на страницу входа с сообщением об ошибке.
+
+        """
     form = ResetPasswordForm()
     if form.validate_on_submit():
         email = form.email.data
@@ -416,9 +726,24 @@ def reset_password():
     return render_template('reset_password.html', form=form, title='Сброс пароля')
 
 
-
 @app.route('/confirm_reset_password/<token>', methods=['GET', 'POST'])
 def confirm_reset_password(token):
+    """
+        Обработчик подтверждения сброса пароля пользователя.
+
+        Методы:
+            - GET: Отображает страницу подтверждения сброса пароля.
+            - POST: Проверяет введенный новый пароль и обновляет пароль пользователя.
+
+        Входные параметры:
+            - token: Токен для подтверждения сброса пароля.
+
+        Возвращаемое значение:
+            - Если токен действителен и пользователь существует, пароль пользователя обновляется и происходит перенаправление на страницу входа
+              с сообщением об успешном изменении пароля.
+            - Если токен недействителен или пользователь не найден, происходит перенаправление на страницу входа с сообщением об ошибке.
+
+        """
     form = ResetPasswordForm_2()
     if form.validate_on_submit():
         email = serializer.loads(token, salt='reset-password', max_age=3600)
@@ -435,8 +760,26 @@ def confirm_reset_password(token):
             return redirect(url_for('login'))
 
     return render_template('confirm_reset_password.html', form=form, token=token, title='Подтверждение сброса пароля')
+
+
 @app.route('/signUp', methods=['POST', 'GET'])
 def signUp():
+    """
+        Обработчик запроса на регистрацию нового пользователя.
+
+        Методы:
+            - GET: Отображает страницу регистрации пользователя.
+            - POST: Создает нового пользователя на основе введенных данных.
+
+        Входные параметры:
+            Нет.
+
+        Возвращаемое значение:
+            - Если все обязательные поля заполнены, новый пользователь создается в базе данных и возвращается сообщение об успешной регистрации.
+            - Если не все обязательные поля заполнены, возвращается HTML-сообщение о необходимости заполнения обязательных полей.
+            - В случае возникновения ошибки, возвращается сообщение об ошибке.
+
+        """
     try:
         name = request.form['inputName']
         email = request.form['inputEmail']
@@ -457,9 +800,21 @@ def signUp():
         return jsonify({'error': str(e)})
 
 
-
 @app.route('/update_profile', methods=['POST'])
 def update_profile():
+    """
+        Обработчик запроса на обновление профиля пользователя.
+
+        Методы:
+            - POST: Обновляет имя и адрес электронной почты пользователя на основе введенных данных.
+
+        Входные параметры:
+            Нет.
+
+        Возвращаемое значение:
+            - После успешного обновления профиля происходит перенаправление на страницу профиля пользователя.
+
+        """
     user_id = session['user']
     user = User.query.get(user_id)
     user.name = request.form['name']
@@ -467,9 +822,23 @@ def update_profile():
     db.session.commit()
     return redirect(url_for('profile'))
 
+
 # Маршрут для загрузки фотографии пользователя
 @app.route('/upload_photo', methods=['POST'])
 def upload_photo():
+    """
+        Обработчик запроса на загрузку фотографии пользователя.
+
+        Методы:
+            - POST: Загружает выбранное пользователем фото и связывает его с профилем пользователя.
+
+        Входные параметры:
+            Нет.
+
+        Возвращаемое значение:
+            - После успешной загрузки фотографии происходит перенаправление на страницу профиля пользователя.
+
+        """
     user_name = session['user']
     user = User.query.filter_by(name=user_name).first()
     if 'photo' in request.files:
@@ -484,6 +853,21 @@ def upload_photo():
 
 @app.route('/editWish/<int:wish_id>', methods=['GET', 'POST'])
 def editWish(wish_id):
+    """
+        Обработчик запроса на редактирование желания в списке.
+
+        Методы:
+            - GET: Отображает страницу редактирования желания с предварительно заполненными данными желания.
+            - POST: Сохраняет внесенные изменения в желании.
+
+        Входные параметры:
+            - wish_id (int): Идентификатор желания, которое требуется отредактировать.
+
+        Возвращаемое значение:
+            - Если желание с указанным идентификатором не найдено, происходит перенаправление на домашнюю страницу пользователя.
+            - При успешном сохранении изменений в желании происходит перенаправление на домашнюю страницу пользователя.
+
+        """
     wish = BucketList.query.get(wish_id)
     if not wish:
         flash('Wish not found')
@@ -508,8 +892,23 @@ def editWish(wish_id):
 
     return render_template('editWish.html', wish=wish)
 
+
 @app.route('/forgotPassword', methods=['GET', 'POST'])
 def forgot_password():
+    """
+        Обработчик запроса на восстановление пароля.
+
+        Методы:
+            - GET: Отображает страницу восстановления пароля.
+            - POST: Отправляет инструкции по восстановлению пароля на указанный электронный адрес.
+
+        Входные параметры:
+            Нет.
+
+        Возвращаемое значение:
+            - При успешной отправке инструкций по восстановлению пароля происходит перенаправление на страницу входа.
+
+        """
     if request.method == 'POST':
         email = request.form['inputEmail']
         # Logic to send password recovery instructions to the provided email
@@ -518,16 +917,54 @@ def forgot_password():
 
     return render_template('forgot_password.html')  # Create a new template for the password recovery page
 
+
 def check_current_password(user, current_password):
+    """
+        Проверяет, совпадает ли текущий пароль пользователя с предоставленным паролем.
+
+        Входные параметры:
+            - user: Объект пользователя, для которого выполняется проверка пароля.
+            - current_password: Текущий пароль, который нужно проверить.
+
+        Возвращаемое значение:
+            - True, если текущий пароль совпадает с предоставленным паролем.
+            - False, если текущий пароль не совпадает с предоставленным паролем.
+
+        """
     return check_password_hash(user.password, current_password)
 
+
 def update_password(user, new_password):
+    """
+        Обновляет пароль пользователя.
+
+        Входные параметры:
+            - user: Объект пользователя, для которого требуется обновить пароль.
+            - new_password: Новый пароль, который нужно установить для пользователя.
+
+        Возвращаемое значение:
+            Нет.
+
+        """
     user.password = generate_password_hash(new_password)
     db.session.commit()
 
 
 @app.route('/change_password', methods=['POST'])
 def change_password():
+    """
+        Обработчик запроса на изменение пароля пользователя.
+
+        Метод:
+            - POST: Обрабатывает введенные данные и изменяет пароль пользователя.
+
+        Входные параметры:
+            Нет.
+
+        Возвращаемое значение:
+            - При успешном изменении пароля происходит перенаправление на страницу профиля пользователя.
+
+        """
     current_password = request.form['current_password']
     new_password = request.form['new_password']
     confirm_password = request.form['confirm_password']
@@ -551,5 +988,3 @@ def change_password():
         flash('Invalid current password', 'error')
 
     return redirect(url_for('profile'))
-
-
