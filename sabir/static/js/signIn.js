@@ -47,23 +47,3 @@ $(function(){
 });
 
 
-/**
- * Функция, выполняющая AJAX-запрос на сброс пароля пользователя при нажатии на кнопку "Сбросить пароль".
- *
- * @returns {void}
- */
-$(function(){
-  $('#resetPassword').click(function(){
-      window.location.href ='/reset_password'
-   $.ajax({
-			url: '/reset_password',
-			type: 'POST',
-			success: function(response){
-				console.log(response);
-			},
-			error: function(error){
-				console.log(error);
-			}
-		});
-   });
-});

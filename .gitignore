@@ -1,6 +1,9 @@
 
-.db
+*.db
+.idea
 
 venv/
 
 imgs/
+
+instance/

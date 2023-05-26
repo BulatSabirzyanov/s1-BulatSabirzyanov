@@ -6,7 +6,7 @@ from werkzeug.security import check_password_hash
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer
 from sabir import app, db
-from sabir.forms import ResetPasswordForm_2, ResetPasswordForm
+from sabir.forms import ResetPasswordRequestForm, ResetPasswordForm
 from sabir.models import User, BucketList, Like
 
 
@@ -33,6 +33,7 @@ app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
 app.config['MAIL_USERNAME'] = 'sabirzyanov427@mail.ru'
 app.config['MAIL_PASSWORD'] = 'MuXPHsf9W2wHHe3p5dk2'
+app.config['ADMINS'] = ['sabirzyanov427@mail.ru']
 # RZHI1u1taet^
 app.config['MAIL_DEFAULT_SENDER'] = 'sabirzyanov427@mail.ru'
 app.config['MAIL_USE_MANAGEMENT_COMMANDS'] = True  # Включение поддержки асинхронной отправки
@@ -693,75 +694,81 @@ def validateLogin():
     return render_template('signin.html')
 
 
-@app.route('/reset_password', methods=['GET', 'POST'])
-def reset_password():
+def send_email(subject: str, sender: str, recipients: list, html_body: str):
     """
-        Обработчик запроса на сброс пароля пользователя.
+    Send an email.
+    Args:
+        subject (str): The subject line of the email.
+        sender (str): The sender's email address.
+        recipients (list): List of recipient email addresses.
+        html_body (str): The body of the email in HTML format.
+    Returns:
+        None
+    """
+    msg = Message(subject, sender=sender, recipients=recipients)
+    msg.html = html_body
+    mail.send(msg)
 
-        Методы:
-            - GET: Отображает страницу сброса пароля.
-            - POST: Проверяет введенный адрес электронной почты пользователя и отправляет инструкции по сбросу пароля.
 
-        Входные параметры:
-            Нет.
+def send_password_reset_email(user):
+    """
+    Send a password reset email to a user.
+    Args:
+        user (User): The user who requested a password reset.
+    Returns:
+        None
+    """
+    token = user.get_reset_password_token()
+    send_email('[BucketList Reset Your Password',
+               sender=app.config['ADMINS'][0],
+               recipients=[user.email],
+               html_body=render_template('email_message.html', token=token))
 
-        Возвращаемое значение:
-            - Если адрес электронной почты существует в базе данных, отправляются инструкции по сбросу пароля на указанный адрес.
-              Затем происходит перенаправление на страницу входа с сообщением об успешной отправке инструкций.
-            - Если адрес электронной почты не найден в базе данных, происходит перенаправление на страницу входа с сообщением об ошибке.
 
-        """
+@app.route('/reset_password_request', methods=['GET', 'POST'])
+def reset_password_request():
+    """
+    Route to request a password reset. If user is logged in, redirects to 'main'.
+    Returns:
+        Rendered reset_password_request.html or redirects to login page
+    """
+    if 'user_id' in session:
+        return redirect(url_for('main'))
+    form = ResetPasswordRequestForm()
+    user = User.query.filter_by(email=form.email.data).first()
+    if user:
+        send_password_reset_email(user)
+        flash('Check your email for the instructions to reset your password')
+        return redirect(url_for('main'))
+    else:
+        flash('There is no user with this email')
+    return render_template('confirm_reset_password.html',
+                           title='Reset Password', form=form)
+
+
+@app.route('/reset_password/<token>', methods=['GET', 'POST'])
+def reset_password(token: str):
+    """
+    Route to reset password with a valid token. If user is logged in, redirects to main page.
+    Args:
+        token (str): Token for password reset.
+    Returns:
+        Rendered reset_password.html template or redirects to login page.
+    """
+    if 'user_id' in session:
+        return redirect(url_for('main'))
+    user = User.verify_reset_password_token(token)
+    if not user:
+        flash('Invalid or expired token')
+        return redirect(url_for('main'))
     form = ResetPasswordForm()
     if form.validate_on_submit():
-        email = form.email.data
-        user = User.query.filter_by(email=email).first()
-        if user:
-            token = serializer.dumps(email, salt='reset-password')
-            reset_link = url_for('confirm_reset_password', token=token, _external=True)
-            message = Message('Сброс пароля', recipients=[email])
-            message.body = f'Для сброса пароля пройдите по ссылке: {reset_link}'
-            mail.send(message)  # Отправка асинхронного письма
-            flash('Инструкции по сбросу пароля были отправлены на вашу почту.', 'info')
-            return redirect(url_for('login'))
-        flash('Адрес электронной почты не найден.', 'error')
-    return render_template('reset_password.html', form=form, title='Сброс пароля')
-
-
-@app.route('/confirm_reset_password/<token>', methods=['GET', 'POST'])
-def confirm_reset_password(token):
-    """
-        Обработчик подтверждения сброса пароля пользователя.
-
-        Методы:
-            - GET: Отображает страницу подтверждения сброса пароля.
-            - POST: Проверяет введенный новый пароль и обновляет пароль пользователя.
-
-        Входные параметры:
-            - token: Токен для подтверждения сброса пароля.
-
-        Возвращаемое значение:
-            - Если токен действителен и пользователь существует, пароль пользователя обновляется и происходит перенаправление на страницу входа
-              с сообщением об успешном изменении пароля.
-            - Если токен недействителен или пользователь не найден, происходит перенаправление на страницу входа с сообщением об ошибке.
-
-        """
-    form = ResetPasswordForm_2()
-    if form.validate_on_submit():
-        email = serializer.loads(token, salt='reset-password', max_age=3600)
-        user = User.query.filter_by(email=email).first()
-        if user:
-            # Обновление пароля пользователя
-            user.password = generate_password_hash(form.password.data)  # Hash the password
-
-            db.session.commit()
-            flash('Пароль успешно изменен.', 'success')
-            return redirect(url_for('login'))
-        else:
-            flash('Пользователь не найден.', 'error')
-            return redirect(url_for('login'))
-
-    return render_template('confirm_reset_password.html', form=form, token=token, title='Подтверждение сброса пароля')
-
+        hashed_password = generate_password_hash(form.password.data)
+        user.password = hashed_password
+        db.session.commit()
+        flash('Your password has been reset.')
+        return redirect(url_for('showSignin'))
+    return render_template('reset_password.html', form=form)
 
 @app.route('/signUp', methods=['POST', 'GET'])
 def signUp():
