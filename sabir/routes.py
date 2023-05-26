@@ -696,13 +696,14 @@ def validateLogin():
 
 def send_email(subject: str, sender: str, recipients: list, html_body: str):
     """
-    Send an email.
-    Args:
-        subject (str): The subject line of the email.
-        sender (str): The sender's email address.
-        recipients (list): List of recipient email addresses.
-        html_body (str): The body of the email in HTML format.
-    Returns:
+    Формирует и отправляет электронное письмо с использованием предоставленных параметров.
+
+    Аргументы:
+        subject (str): Тема электронного письма.
+        sender (str): Адрес электронной почты отправителя.
+        recipients (list): Список адресов электронной почты получателей.
+        html_body (str): Тело электронного письма в формате HTML.
+    Возвращает:
         None
     """
     msg = Message(subject, sender=sender, recipients=recipients)
@@ -712,10 +713,11 @@ def send_email(subject: str, sender: str, recipients: list, html_body: str):
 
 def send_password_reset_email(user):
     """
-    Send a password reset email to a user.
-    Args:
-        user (User): The user who requested a password reset.
-    Returns:
+    Отправляет пользователю электронное письмо для сброса пароля.
+
+    Аргументы:
+        user (User): Пользователь, запросивший сброс пароля.
+    Возвращает:
         None
     """
     token = user.get_reset_password_token()
@@ -728,9 +730,10 @@ def send_password_reset_email(user):
 @app.route('/reset_password_request', methods=['GET', 'POST'])
 def reset_password_request():
     """
-    Route to request a password reset. If user is logged in, redirects to 'main'.
-    Returns:
-        Rendered reset_password_request.html or redirects to login page
+    Маршрут для запроса на сброс пароля. Если пользователь уже вошел в систему, перенаправляет на главную страницу.
+
+    Возвращает:
+        Отображение страницы reset_password_request.html или перенаправляет на страницу входа.
     """
     if 'user_id' in session:
         return redirect(url_for('main'))
@@ -749,11 +752,12 @@ def reset_password_request():
 @app.route('/reset_password/<token>', methods=['GET', 'POST'])
 def reset_password(token: str):
     """
-    Route to reset password with a valid token. If user is logged in, redirects to main page.
-    Args:
-        token (str): Token for password reset.
-    Returns:
-        Rendered reset_password.html template or redirects to login page.
+    Маршрут для сброса пароля с действующим токеном. Если пользователь уже вошел в систему, перенаправляет на главную страницу.
+
+    Аргументы:
+        token (str): Токен для сброса пароля.
+    Возвращает:
+        Отображение страницы reset_password.html или перенаправляет на страницу входа.
     """
     if 'user_id' in session:
         return redirect(url_for('main'))
