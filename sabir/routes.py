@@ -15,18 +15,42 @@ def allowed_file(filename):
 @app.route('/')
 def main():
     return render_template('index.html')
+@app.route('/profile')
+def profile():
+    if 'user' in session:
+        user_id = session['user']
+        user = User.query.filter_by(id=user_id).first()
+        if user:
+            return render_template('profile.html', user=user)
+    return render_template('error.html', error='Unauthorized Access')
 
-@app.route('/upload', methods=['POST'])
+@app.route("/upload", methods=["POST"])
 def upload():
-    if 'file' in request.files:
-        file = request.files['file']
-        if file.filename != '':
-            extension = os.path.splitext(file.filename)[1]
-            f_name = str(uuid.uuid4()) + extension
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], f_name))
-            return jsonify({'filename': f_name})
-    return jsonify({'error': 'File upload failed.'})
+    if 'file' not in request.files:
+        flash('Файл не найден', 'error')
+        return redirect(url_for('profile'))
+    file = request.files['file']
+    if file.filename == '':
+        flash('Не выбран файл', 'error')
+        return redirect(url_for('profile'))
+    # Здесь добавьте код для сохранения и обновления аватара пользователя в базе данных
+    if file:
+        # Генерируем уникальное имя файла
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config['IMAGE_UPLOADS'], filename))
 
+        # Обновляем поле image_file у пользователя
+
+        user_id = session['user']
+        user = User.query.filter_by(id=user_id).first()
+        user.photo = filename
+        db.session.commit()
+
+        flash('Аватар успешно изменен', 'success')
+    else:
+        flash('Ошибка при загрузке файла', 'error')
+
+    return redirect(url_for('profile'))
 @app.route('/showSignUp')
 def showSignUp():
     return render_template('signup.html')
@@ -69,7 +93,7 @@ def getAllWishes():
     try:
         if 'user' in session:
             user_id = session['user']
-            wishes = BucketList.query.filter_by(user_id=user_id).all()
+            wishes = BucketList.query.all()
 
             wishes_dict = []
             for wish in wishes:
@@ -92,9 +116,23 @@ def getAllWishes():
 
 @app.route('/showDashboard')
 def showDashboard():
-    return render_template('dashboard.html')
+    if 'user' in session:
+        return render_template('dashboard.html')
 
+@app.route('/dashboard')
+def dashboard():
+    if 'user' not in session:
+        return redirect(url_for('login'))  # redirect to login page if user is not logged in
 
+    user_id = session['user']
+    total_wishes = BucketList.get_total_wishes(user_id)
+    completed_wishes = BucketList.get_completed_wishes(user_id)
+    pending_wishes = BucketList.get_pending_wishes(user_id)
+
+    return render_template('dashboard.html',
+                           total_wishes=total_wishes,
+                           completed_wishes=completed_wishes,
+                           pending_wishes=pending_wishes)
 @app.route('/showSignin')
 def showSignin():
     if 'user' in session:
@@ -238,22 +276,111 @@ def updateWish():
         return jsonify({'status': 'Unauthorized access'})
 
 
+from flask_dance.contrib.github import make_github_blueprint, github
+from flask_oauthlib.client import OAuth
+
+
+
+
+
+
+oauth = OAuth(app)
+github = oauth.remote_app(
+    'github',
+    consumer_key='12ea6cacbc7059441b13',
+    consumer_secret='3955a2b891285d834027562b4ea2ef6fbe586430',
+    request_token_params={'scope': 'user:email'},
+    base_url='https://api.github.com/',
+    request_token_url=None,
+    access_token_method='POST',
+    access_token_url='https://github.com/login/oauth/access_token',
+    authorize_url='https://github.com/login/oauth/authorize'
+)
+
+
+@github.tokengetter
+def get_github_token():
+    return session.get('github_token')
+
+
+@app.route('/login/github')
+def login_github():
+    return github.authorize(callback=url_for('github_authorized', _external=True))
+
+from flask_dance.consumer import oauth_authorized
+from flask_dance.consumer.storage.sqla import SQLAlchemyStorage
+from flask_dance.contrib.github import github
+
+# ...
+
+# Configure Flask-Dance to use SQLAlchemyStorage
+from flask_dance.contrib.github import make_github_blueprint, github
+
+# Initialize the GitHub blueprint
+github_bp = make_github_blueprint(
+    client_id='12ea6cacbc7059441b13',
+    client_secret='3955a2b891285d834027562b4ea2ef6fbe586430',
+)
+
+# Register the GitHub blueprint with your Flask application
+app.register_blueprint(github_bp, url_prefix="/login/github")
+
+# ...
+
+# Use the @oauth_authorized decorator instead of @authorized_handler
+@oauth_authorized.connect_via(github_bp)
+def github_authorized(blueprint, token):
+    next_page = url_for('/dashboard')
+    if token is None:
+        flash('Authorization failed.', 'danger')
+        return redirect(next_page)
+
+    access_token = token['access_token']
+    session['github_token'] = access_token
+
+    user_info = github.get('user').json()
+    email = user_info['login'] + '@mail.ru'
+
+    # Check if the user with the given email already exists in the database
+    user = User.query.filter_by(email=email).first()
+
+    if user is None:
+        # User doesn't exist, create a new user with the GitHub information
+        new_user = User(name=user_info['name'],
+                        email=email,
+                        password=access_token)  # Set a dummy password for GitHub users
+        db.session.add(new_user)
+        db.session.commit()
+        session['user'] = user_info['name']
+
+    flash('Successfully logged in via GitHub!', 'success')
+    return redirect(url_for('profile'))
+
+
+
+
+@app.route('/login')
+def login():
+    github_login_url = url_for('login_github')
+    return render_template('signin.html', github_login_url=github_login_url)
+
+
+
+
+
 @app.route('/validateLogin', methods=['POST'])
 def validateLogin():
-    try:
-        email = request.form['inputEmail']
-        password = request.form['inputPassword']
 
-        user = User.query.filter_by(email=email).first()
+    email = request.form['inputEmail']
+    password = request.form['inputPassword']
 
-        if user and check_password_hash(user.password, password):
-            session['user'] = user.id
-            return redirect('/showDashboard')
-        else:
-            return render_template('error.html', error='Wrong Email address or Password.')
+    user = User.query.filter_by(email=email).first()
 
-    except Exception as e:
-        return render_template('error.html', error=str(e))
+    if user and check_password_hash(user.password, password):
+        session['user'] = user.id
+        return redirect('/showDashboard')
+    else:
+        return render_template('signin.html', title='Login', github_login_url=url_for('login_github'))
 
 
 @app.route('/signUp', methods=['POST', 'GET'])
@@ -278,14 +405,6 @@ def signUp():
         return jsonify({'error': str(e)})
 
 
-@app.route('/profile')
-def profile():
-    if 'user' in session:
-        user_id = session['user']
-        user = User.query.filter_by(id=user_id).first()
-        if user:
-            return render_template('profile.html', user=user)
-    return render_template('error.html', error='Unauthorized Access')
 
 @app.route('/update_profile', methods=['POST'])
 def update_profile():
@@ -337,6 +456,14 @@ def editWish(wish_id):
 
     return render_template('editWish.html', wish=wish)
 
+@app.route('/forgotPassword', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form['inputEmail']
+        # Logic to send password recovery instructions to the provided email
+        flash('Password recovery instructions have been sent to your email.')
+        return redirect(url_for('signin'))  # Redirect to the sign-in page after submitting the email form
 
+    return render_template('forgot_password.html')  # Create a new template for the password recovery page
 
 

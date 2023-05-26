@@ -1,70 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <title>User Home</title>
+{% extends 'base.html' %}
 
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
-    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.min.css">
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
-          integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
-    <link href="../static/css/signup.css" rel="stylesheet">
-    <script src="../static/js/jquery-1.11.2.js"></script>
-    <script type="text/javascript" src="http://ajax.aspnetcdn.com/ajax/jquery.templates/beta1/jquery.tmpl.js"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
-
-    <style>
-        .btn-file {
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn-file input[type=file] {
-            position: absolute;
-            top: 0;
-            right: 0;
-            min-width: 100%;
-            min-height: 100%;
-            font-size: 100px;
-            text-align: right;
-            filter: alpha(opacity=0);
-            opacity: 0;
-            outline: none;
-            background: white;
-            cursor: inherit;
-            display: block;
-        }
-
-        .trash {
-            color: rgb(209, 91, 71);
-        }
-
-        .panel-body .checkbox {
-            display: inline-block;
-            margin: 0px;
-        }
-
-        .list-group {
-            margin-bottom: 0px;
-        }
-    </style>
-
-</head>
-
-<body>
+{% block content %}
 
 <div class="container">
-    <div class="header">
-        <nav>
-            <ul class="nav nav-pills pull-right">
-                <li role="presentation"><a href="/showDashboard">Dashboard</a></li>
-                <li role="presentation" class="active"><a href="/userHome">Home</a></li>
-                <li role="presentation"><a href="/showAddWish">Add Wish</a></li>
-                <li role="presentation"><a href="/logout">Logout</a></li>
-            </ul>
-        </nav>
-        <h3 class="text-muted">Python Flask App</h3>
-    </div>
-
     <div class="well">
         <div class="row">
             <div class="col-md-12">
@@ -123,16 +61,13 @@
             </form>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
+
             <button type="button" class="btn btn-primary" id="btnSaveChanges">Сохранить изменения</button>
         </div>
     </div>
 </div>
 
-<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel"
-     aria-hidden="true">
-    <!-- Модальное окно для подтверждения удаления виша -->
-</div>
+
 
 <input type="hidden" id="hdnStart" value="1"/>
 <input type="hidden" id="hdnEnd" value="5"/>
@@ -169,6 +104,27 @@
         /* $('document').on('click', '.navigation li a', function () {
              console.log('me in');
          });*/
+    });
+    $(document).on('click', '.btn-delete', function () {
+        var wishId = $(this).data('id');
+
+        $.ajax({
+            url: "/deleteWish",
+            method: 'POST',
+            data: {id: wishId},  // Pass the wish_id as a parameter in the AJAX request
+            success: function (response) {
+                window.location.reload();
+                console.log(response);
+            },
+            error: function (xhr, status, error) {
+                // Handle the error response
+                console.log(error);
+            }
+        });
+    });
+
+    $('.close').click(function (){
+        $('#editModal').hide();
     });
     // Обработчик нажатия на кнопку "Редактировать"
     $(document).on('click', '.btn-edit', function () {
@@ -362,5 +318,4 @@
 
 </script>
 
-
-</html>
+{% endblock %}

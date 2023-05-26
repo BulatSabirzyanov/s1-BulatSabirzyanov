@@ -34,11 +34,19 @@
         <label for="inputPassword" class="sr-only">Password</label>
         <input type="password" name="inputPassword" id="inputPassword" class="form-control" placeholder="Password" required>
         
+
+          <form class="form-signin" action="/validateLogin" method="post">
+        <!-- Existing input fields... -->
         <button id="btnSignIn" class="btn btn-lg btn-primary btn-block" type="submit">Sign in</button>
+    </form>
+    <a href="/forgotPassword">Forgot Password?</a> <!-- Add this line for the "Forgot Password" link -->
       </form>
       </div>
 
-      
+      <div>
+        <a href="#" id="btnGitHubLogin">Login via GitHub</a>
+      </div>
+
 
       <footer class="footer">
 

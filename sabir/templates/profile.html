@@ -1,6 +1,36 @@
 {% extends 'base.html' %}
 
 {% block content %}
+
+<style>
+   .profile-avatar img {
+        width: 100px;
+        height: 75px;
+        object-fit: cover; /* Подгоняет изображение в соответствии с заданными размерами */
+        border-radius: 20%; /* Опционально: добавляет закругленные углы для круглого аватара */
+    }
+
+
+    .profile-avatar-2 img {
+        width: 350px; /* Задайте желаемую ширину */
+        height: 200px; /* Задайте желаемую высоту */
+        object-fit: cover; /* Подгоняет изображение в соответствии с заданными размерами */
+        border-radius: 10%; /* Опционально: добавляет закругленные углы для круглого аватара */
+    }
+
+
+    .profile-upload {
+        text-align: center;
+    }
+
+    .profile-avatar-move {
+        margin-left: 500px;
+
+
+
+
+</style>
+
     <div class="container">
         <div class="row">
             <div class="col-md-6 offset-md-3">
@@ -33,21 +63,58 @@
                         </form>
                     </div>
                 </div>
-
-                <div class="card mt-3">
-                    <div class="card-body">
-                        <h5 class="card-title">Upload Photo</h5>
-                        <form method="post" action="{{ url_for('upload_photo') }}" enctype="multipart/form-data">
-                            <div class="form-group">
-                                <label for="photo">Choose Photo:</label>
-                                <input type="file" class="form-control-file" id="photo" name="photo" accept="image/*"
-                                       required>
-                            </div>
-                            <button type="submit" class="btn btn-primary">Upload</button>
-                        </form>
-                    </div>
+                {% for cat, msg in get_flashed_messages(True) %}
+                  <div class="flash {{ cat }}">{{ msg }}</div>
+                {% endfor %}
+                <div class="profile-avatar-2">
+                    <img id="profile-avatar-img" src="{{ url_for('static', filename='imgs/' + user.photo) }}"
+                         alt="Аватар">
                 </div>
+
+
+        <div class="profile-upload">
+            <form id="profile-upload-form" action="{{ url_for('upload') }}" method="POST"
+                  enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="file">Изменить аватар:</label>
+                    <input type="file" name="file" id="profile-file-input" class="form-control-file">
+                </div>
+                <div class="form-group">
+                    <input type="submit" value="Загрузить" class="btn btn-primary">
+                </div>
+            </form>
+        </div>
+
+
             </div>
         </div>
     </div>
+
+
+<script>
+    // JavaScript код для обновления предварительного просмотра аватара при выборе файла
+    document.getElementById('profile-file-input').addEventListener('change', function (event) {
+        var reader = new FileReader();
+        reader.onload = function () {
+            var img = document.getElementById('profile-avatar-img');
+            img.src = reader.result;
+        }
+        reader.readAsDataURL(event.target.files[0]);
+    });
+</script>
+
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
+            integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+            crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"
+            integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN"
+            crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"
+            integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV"
+            crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.1/socket.io.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://kit.fontawesome.com/b051312dea.js" crossorigin="anonymous"></script>
+
+
 {% endblock %}
