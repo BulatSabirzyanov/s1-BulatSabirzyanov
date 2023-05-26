@@ -1,13 +1,31 @@
 from flask import Flask, render_template, request, redirect, session, jsonify, url_for, flash
-from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
-import uuid
 from werkzeug.utils import secure_filename
-from .models import User,BucketList,Like, db
+from werkzeug.security import check_password_hash
+from flask_mail import Mail, Message
+from itsdangerous import URLSafeTimedSerializer
+from sabir import app, db
+from sabir.forms import ResetPasswordForm_2, ResetPasswordForm
+from sabir.models import User,BucketList,Like
 
 
-app = Flask(__name__)
+app.config['MAIL_SERVER'] = 'smtp.mail.ru'
+app.config['MAIL_PORT'] = 465
+app.config['MAIL_USE_TLS'] = False
+app.config['MAIL_USE_SSL'] = True
+app.config['MAIL_USERNAME'] = 'sabirzyanov427@mail.ru'
+app.config['MAIL_PASSWORD'] = 'MuXPHsf9W2wHHe3p5dk2'
+# RZHI1u1taet^
+app.config['MAIL_DEFAULT_SENDER'] = 'sabirzyanov427@mail.ru'
+app.config['MAIL_USE_MANAGEMENT_COMMANDS'] = True  # Включение поддержки асинхронной отправки
+
+mail = Mail(app)
+serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+
+
+
+
 def allowed_file(filename):
     allowed_extensions = {'jpg', 'jpeg', 'png', 'gif'}
     return '.' in filename and \
@@ -18,8 +36,8 @@ def main():
 @app.route('/profile')
 def profile():
     if 'user' in session:
-        user_id = session['user']
-        user = User.query.filter_by(id=user_id).first()
+        user_name = session['user']
+        user = User.query.filter_by(name=user_name).first()
         if user:
             return render_template('profile.html', user=user)
     return render_template('error.html', error='Unauthorized Access')
@@ -29,10 +47,13 @@ def upload():
     if 'file' not in request.files:
         flash('Файл не найден', 'error')
         return redirect(url_for('profile'))
+
     file = request.files['file']
+
     if file.filename == '':
         flash('Не выбран файл', 'error')
         return redirect(url_for('profile'))
+
     # Здесь добавьте код для сохранения и обновления аватара пользователя в базе данных
     if file:
         # Генерируем уникальное имя файла
@@ -40,9 +61,13 @@ def upload():
         file.save(os.path.join(app.config['IMAGE_UPLOADS'], filename))
 
         # Обновляем поле image_file у пользователя
+        user_name = session['user']
+        user = User.query.filter_by(name=user_name).first()
 
-        user_id = session['user']
-        user = User.query.filter_by(id=user_id).first()
+        if user is None:
+            flash('Пользователь не найден', 'error')
+            return redirect(url_for('profile'))
+
         user.photo = filename
         db.session.commit()
 
@@ -51,6 +76,7 @@ def upload():
         flash('Ошибка при загрузке файла', 'error')
 
     return redirect(url_for('profile'))
+
 @app.route('/showSignUp')
 def showSignUp():
     return render_template('signup.html')
@@ -94,7 +120,6 @@ def getAllWishes():
         if 'user' in session:
             user_id = session['user']
             wishes = BucketList.query.all()
-
             wishes_dict = []
             for wish in wishes:
                 wish_dict = {
@@ -261,6 +286,8 @@ def updateWish():
             user_id = session['user']
             title = request.form['title']
             description = request.form['description']
+            is_private = request.form.get('is_private') == 'true'
+            is_done = request.form.get('is_done') == 'true'
             wish_id = request.form['id']
 
             bucketlist = BucketList.query.get(wish_id)
@@ -269,11 +296,14 @@ def updateWish():
 
             bucketlist.title = title
             bucketlist.description = description
+            bucketlist.is_private = is_private
+            bucketlist.is_done = is_done
             db.session.commit()
 
             return jsonify({'status': 'OK'})
     except Exception as e:
         return jsonify({'status': 'Unauthorized access'})
+
 
 
 from flask_dance.contrib.github import make_github_blueprint, github
@@ -308,37 +338,20 @@ def login_github():
     return github.authorize(callback=url_for('github_authorized', _external=True))
 
 from flask_dance.consumer import oauth_authorized
-from flask_dance.consumer.storage.sqla import SQLAlchemyStorage
-from flask_dance.contrib.github import github
 
-# ...
+@app.route('/login/github/callback')
+@github.authorized_handler
+def github_authorized(resp):
 
-# Configure Flask-Dance to use SQLAlchemyStorage
-from flask_dance.contrib.github import make_github_blueprint, github
-
-# Initialize the GitHub blueprint
-github_bp = make_github_blueprint(
-    client_id='12ea6cacbc7059441b13',
-    client_secret='3955a2b891285d834027562b4ea2ef6fbe586430',
-)
-
-# Register the GitHub blueprint with your Flask application
-app.register_blueprint(github_bp, url_prefix="/login/github")
-
-# ...
-
-# Use the @oauth_authorized decorator instead of @authorized_handler
-@oauth_authorized.connect_via(github_bp)
-def github_authorized(blueprint, token):
-    next_page = url_for('/dashboard')
-    if token is None:
+    next_page = url_for('dashboard')
+    if resp is None:
         flash('Authorization failed.', 'danger')
         return redirect(next_page)
 
-    access_token = token['access_token']
+    access_token = resp['access_token']
     session['github_token'] = access_token
 
-    user_info = github.get('user').json()
+    user_info = github.get('user').data
     email = user_info['login'] + '@mail.ru'
 
     # Check if the user with the given email already exists in the database
@@ -352,23 +365,23 @@ def github_authorized(blueprint, token):
         db.session.add(new_user)
         db.session.commit()
         session['user'] = user_info['name']
+        flash('Successfully logged in via GitHub!', 'success')
+        return redirect(url_for('profile'))
 
+    session['user'] = user_info['name']
     flash('Successfully logged in via GitHub!', 'success')
     return redirect(url_for('profile'))
 
 
 
 
-@app.route('/login')
-def login():
-    github_login_url = url_for('login_github')
-    return render_template('signin.html', github_login_url=github_login_url)
 
 
 
 
 
-@app.route('/validateLogin', methods=['POST'])
+
+@app.route('/validateLogin', methods=['GET', 'POST'])
 def validateLogin():
 
     email = request.form['inputEmail']
@@ -377,12 +390,51 @@ def validateLogin():
     user = User.query.filter_by(email=email).first()
 
     if user and check_password_hash(user.password, password):
-        session['user'] = user.id
+        session['user'] = user.name
         return redirect('/showDashboard')
-    else:
-        return render_template('signin.html', title='Login', github_login_url=url_for('login_github'))
 
 
+    return render_template('signin.html')
+
+
+
+@app.route('/reset_password', methods=['GET', 'POST'])
+def reset_password():
+    form = ResetPasswordForm()
+    if form.validate_on_submit():
+        email = form.email.data
+        user = User.query.filter_by(email=email).first()
+        if user:
+            token = serializer.dumps(email, salt='reset-password')
+            reset_link = url_for('confirm_reset_password', token=token, _external=True)
+            message = Message('Сброс пароля', recipients=[email])
+            message.body = f'Для сброса пароля пройдите по ссылке: {reset_link}'
+            mail.send(message)  # Отправка асинхронного письма
+            flash('Инструкции по сбросу пароля были отправлены на вашу почту.', 'info')
+            return redirect(url_for('login'))
+        flash('Адрес электронной почты не найден.', 'error')
+    return render_template('reset_password.html', form=form, title='Сброс пароля')
+
+
+
+@app.route('/confirm_reset_password/<token>', methods=['GET', 'POST'])
+def confirm_reset_password(token):
+    form = ResetPasswordForm_2()
+    if form.validate_on_submit():
+        email = serializer.loads(token, salt='reset-password', max_age=3600)
+        user = User.query.filter_by(email=email).first()
+        if user:
+            # Обновление пароля пользователя
+            user.password = generate_password_hash(form.password.data)  # Hash the password
+
+            db.session.commit()
+            flash('Пароль успешно изменен.', 'success')
+            return redirect(url_for('login'))
+        else:
+            flash('Пользователь не найден.', 'error')
+            return redirect(url_for('login'))
+
+    return render_template('confirm_reset_password.html', form=form, token=token, title='Подтверждение сброса пароля')
 @app.route('/signUp', methods=['POST', 'GET'])
 def signUp():
     try:
@@ -418,8 +470,8 @@ def update_profile():
 # Маршрут для загрузки фотографии пользователя
 @app.route('/upload_photo', methods=['POST'])
 def upload_photo():
-    user_id = session['user']
-    user = User.query.get(user_id)
+    user_name = session['user']
+    user = User.query.filter_by(name=user_name).first()
     if 'photo' in request.files:
         file = request.files['photo']
         if file and allowed_file(file.filename):
@@ -465,5 +517,39 @@ def forgot_password():
         return redirect(url_for('signin'))  # Redirect to the sign-in page after submitting the email form
 
     return render_template('forgot_password.html')  # Create a new template for the password recovery page
+
+def check_current_password(user, current_password):
+    return check_password_hash(user.password, current_password)
+
+def update_password(user, new_password):
+    user.password = generate_password_hash(new_password)
+    db.session.commit()
+
+
+@app.route('/change_password', methods=['POST'])
+def change_password():
+    current_password = request.form['current_password']
+    new_password = request.form['new_password']
+    confirm_password = request.form['confirm_password']
+
+    user_name = session['user']
+    print(f"user_id {user_name}")  # Проверка значения идентификатора пользователя
+
+    user = user = User.query.filter_by(name=user_name).first()
+    print(f"user{user}")
+
+    # Проверяем, что текущий пароль пользователя соответствует введенному текущему паролю
+    if check_current_password(user, current_password):
+        # Проверяем, что новый пароль и его подтверждение совпадают
+        if new_password == confirm_password:
+            # Обновляем пароль пользователя в базе данных
+            update_password(user, new_password)
+            flash('Password successfully changed', 'success')
+        else:
+            flash('New password and confirm password do not match', 'error')
+    else:
+        flash('Invalid current password', 'error')
+
+    return redirect(url_for('profile'))
 
 

@@ -1,13 +1,87 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<script>
+    GetAllWishes();
 
+    function GetAllWishes() {
+        $.ajax({
+            url: '/getAllWishes',
+            type: 'GET',
+            success: function (response) {
+                console.log(111111);
+                console.log(response);
+                var data = JSON.parse(response);
+                var ul = document.getElementById('ulist');
 
+                for (var i = 0; i < data.length; i++) {
+                    var li = document.createElement('li');
+                    li.classList.add("list-group-item");
 
+                    var div = document.createElement('div');
+                    div.classList.add("d-flex", "align-items-center");
 
-    <footer class="footer">
+                    var img = document.createElement('img');
+                    img.src = data[i].FilePath;
+                    img.alt = "Product Icon";
+                    img.classList.add("product-icon");
 
-    </footer>
+                    var divFlex = document.createElement('div');
+                    divFlex.classList.add("flex-grow-1");
 
+                    var h4 = document.createElement('h4');
+                    h4.classList.add("list-group-item-heading");
+                    h4.textContent = data[i].Title;
+
+                    var p = document.createElement('p');
+                    p.classList.add("list-group-item-text");
+                    p.textContent = data[i].Description;
+
+                    divFlex.appendChild(h4);
+                    divFlex.appendChild(p);
+
+                    div.appendChild(img);
+                    div.appendChild(divFlex);
+
+                    li.appendChild(div);
+
+                    ul.appendChild(li);
+                }
+            },
+            error: function (error) {
+                console.log(error);
+            }
+        });
+    }
+</script>
+
+<div class="well">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="panel-body">
+                <ul id="ulist" class="list-group">
+                    <li class="list-group-item">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-grow-1">
+                                    <h4 class="list-group-item-heading">{{ Title }}</h4>
+                                    <p class="list-group-item-text">{{ Description }}</p>
+                                </div>
+
+                            </div>
+                        </li>
+                </ul>
+                <nav>
+                    <ul class="pagination">
+                        <!-- Ваша пагинация будет добавляться здесь -->
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer class="footer">
+    <!-- Ваш подвал -->
+</footer>
 
 {% endblock %}
