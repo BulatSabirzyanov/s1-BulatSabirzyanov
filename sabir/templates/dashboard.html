@@ -9,9 +9,8 @@
             url: '/getAllWishes',
             type: 'GET',
             success: function (response) {
-                console.log(111111);
                 console.log(response);
-                var data = JSON.parse(response);
+                var data = response;
                 var ul = document.getElementById('ulist');
 
                 for (var i = 0; i < data.length; i++) {

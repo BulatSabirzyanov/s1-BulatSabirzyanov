@@ -251,7 +251,7 @@ def getAllWishes():
     try:
         if 'user' in session:
             user_id = session['user']
-            wishes = BucketList.query.all()
+            wishes = BucketList.query.filter_by(is_private=False)
             wishes_dict = []
             for wish in wishes:
                 wish_dict = {
@@ -259,11 +259,12 @@ def getAllWishes():
                     'Title': wish.title,
                     'Description': wish.description,
                     'FilePath': wish.file_path,
-                    'Like': wish.likes.count(),
+                    'Like': len(wish.likes),
                     'HasLiked': Like.query.filter_by(user_id=user_id, bucketlist_id=wish.id).first() is not None
                 }
                 wishes_dict.append(wish_dict)
 
+            print(wishes_dict)
             return jsonify(wishes_dict)
         else:
             return jsonify({'error': 'Unauthorized Access'})
